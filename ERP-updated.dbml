@@ -793,7 +793,7 @@ Enum booking_request_status{
 }
 
 Enum "employment_type_enum" {
-  "permanant"
+  "permanent"
   "contract"
 }
 

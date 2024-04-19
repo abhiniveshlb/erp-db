@@ -4,7 +4,7 @@ Project "ERP Rebuild" {
   '''
 }
 
-Table "projects" [headercolor: #58D68D] { 
+Table "projects" [headercolor: #58D68D] {
   Note: "These are the projects. In our old ERP it was called applications"
   "id" int(11) [pk, not null]
   "name" varchar(45) [default: NULL]
@@ -31,18 +31,18 @@ Table project_dmh [headercolor: #58D68D] {
   "updated_at" timestamp
 }
 
-Table project_assets { 
-  Note : "To keep project assets. Assets can be a link or link to files like repositiry link or any documentation links"
+Table project_assets {
+  Note : "To keep project assets. Assets can be a link or link to files like repository link or any documentation links"
   "id" int(11) [pk, not null]
   "project_id" int() [ref: < projects.id]
   "name" varchar(100) [note: "Name of the asset"]
-  "type" project_assets_type 
+  "type" project_assets_type
   "link" varchar(250)
   "created_at" timestamp
   "updated_at" timestamp
 }
 
-Table projects_email_subscribers { 
+Table projects_email_subscribers {
   Note : "Project notifications should be directed to the list of emails provided in this table."
   "id" int(11) [pk, not null]
   "project_id" int [ref: < projects.id]
@@ -51,7 +51,7 @@ Table projects_email_subscribers {
   "updated_at" timestamp
 }
 
-Table "project_segments" { 
+Table "project_segments" {
   Note : "Project segments and parent application segments. These are the requirements"
   "id" int(11) [pk, not null]
   "name" varchar(200) [default: NULL]
@@ -61,7 +61,7 @@ Table "project_segments" {
   "updated_at" timestamp
 }
 
-Table "work_orders" { 
+Table "work_orders" {
   Note : "This table is to manage a group of requirements that the project needs to be done like a sprint. RequirementSubsets table in the old database"
   "id" int(11) [pk, not null]
   "name" varchar(150) [default: NULL]
@@ -69,13 +69,13 @@ Table "work_orders" {
   "start_date" date [Note: "Start date of the work order. "]
   "end_date" date [Note : "End date of the work order. "]
   "status" tinyint [not null, default: 1]
-  "max_cost" int(11) [not null, note: "To handle the Fixed type billing"] 
+  "max_cost" int(11) [not null, note: "To handle the Fixed type billing"]
   "created_at" timestamp
   "updated_at" timestamp
 }
 
 Table "project_segments_to_work_order" {
-  Note : "Link Application segmants or requirements to workorder, To manage workorder overflow"
+  Note : "Link Application segments or requirements to work-order, To manage work-order overflow"
   "id" int(11) [pk, not null]
   "work_order_id" int() [ref: < work_orders.id]
   "project_segment_id" int(11) [ref: < project_segments.id]
@@ -86,7 +86,7 @@ Table "project_segments_to_work_order" {
 Table "project_talents" {
   Note : "To link talents to the project"
   "id" int(11) [pk, not null]
-  "user_id" int() [ref : < users.id]  
+  "user_id" int() [ref : < users.id]
   "project_id" int() [ref : < projects.id]
   "created_at" timestamp
   "updated_at" timestamp
@@ -97,17 +97,17 @@ Table "clients" {
   Note : "Client details table. The basic details of company/client details"
   "id" int(11) [pk, not null]
   "company_name" varchar(128)
-  "company_address" text 
+  "company_address" text
   "country" int() [ref : < info.countries.id]
-  "credit_limit" int(11)  
+  "credit_limit" int(11)
   // "invoice_day" int(11) [default: 15] // Not used in code
   "invoice_due_days" int(11) [default: 7]
   "require_prepayment" tinyint(1) [not null, default: 1, note: 'Used in invoice notification cron to include payment details']
   "recommended_prepayment_hours" int(11) [default: NULL]
-  // "deduct_pp_fees" int(1) [default: NULL] //TODO: Check and remove 
-  "date_registered" date [not null, default: "0000-00-00"]  
-  "phone_number" varchar(100) 
-  // "fax" varchar(100) 
+  // "deduct_pp_fees" int(1) [default: NULL] //TODO: Check and remove
+  "date_registered" date [not null, default: "0000-00-00"]
+  "phone_number" varchar(100)
+  // "fax" varchar(100)
   // "billing_timeframe_days" int(120) // Not used in code
   // "billing_interval_hours" int(120) // Not used in code
   "keyword" varchar(30) [default: NULL]
@@ -125,6 +125,140 @@ Table "clients" {
   "updated_at" timestamp
 }
 
+Table billing."invoices" {
+  Note : "The client invoices generated."
+  "id" int(11) [pk, not null]
+  "client_id" int() [ref : < clients.id]
+  "project_id" int() [ref : < projects.id]
+  "currency_id" int [ref : < info.currencies.id]
+  "exchange_rate_id" int [ref: < info.currency_exchange_rates.id, Note : "to calculate the amount in INR"]
+  "number" varchar(20)
+  "date_issued" date
+  "date_due" date
+  "amount" decimal(20,2)
+  "profit_center" int [ref: < cost_centers.id] // TODO: check and remove. Using in code
+  "status" invoice_status
+  "description" text
+  "payment_date" date
+  "contacts" int(10) [default: NULL]
+  "type" invoice_types
+  "expected_due_date" date
+  "comment" text
+  "seq" int(11) [default: NULL]
+  "vat" decimal(5,2) [default: NULL]
+  "vat_amount" decimal(20,2)
+  "total_amount" decimal(20,2) [not null, note: 'in Clients currency']
+  "parent_invoice_id" int [ref: < billing.invoices.id, Note: "To handle the multiple invoices"]
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
+
+Table billing.invoice_discounts {
+  Note : "New table to handle the discounts applied to an invoice"
+  "id" int(11) [pk, not null]
+  "client_invoice_id" int() [ref: < billing.invoices.id]
+  "currency_id" int [ref : < info.currencies.id]
+  "exchange_rate_id" int [ref: < info.currency_exchange_rates.id, Note : "to calculate the amount in INR"]
+  "discount_description" text [default: NULL]
+  "discount" decimal(20,2)
+  "discount_type" discount_type
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
+Table billing.invoice_discount_entries {
+  Note : '''
+    The time entries we are removing from the invice to give the discount
+    - The time entries id in this table is omitted when we create new invoices
+  '''
+
+  "id" int(11) [pk, not null]
+  "invoice_discount_id" int() [ref: < billing.invoice_discounts.id]
+  time_entries json
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
+Table billing.invoice_payments {
+  Note : "The payment data wrt invoice."
+  "id" int(11) [pk, not null]
+  "invoice_id" int() [ref: < billing.invoices.id]
+  "amount_paid" decimal(20,2)
+  "comments" text
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
+Table billing.invoice_payments_entries {
+  Note : '''
+    The time entries that are paid by the client against an invoice
+    - The time entries id in this table is omitted when we create new invoices
+  '''
+  "id" int(11) [pk, not null]
+  "invoice_payment_id" int() [ref: < billing.invoice_payments.id]
+  time_entries json
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
+Table billing."invoice_outlays" {
+  Note : "Additional expense for the company"
+  "id" int(11) [pk, not null]
+  "project_id" int [ref : < projects.id]
+  "currency_id" int [ref : < info.currencies.id]
+  "user_id" int [ref : < users.id, Note: "Not all entries depend on users, like JIRA cost"]
+  "invoice_id" int [ref: < billing.invoices.id]
+  "name" varchar(255)
+  "description" varchar(1000)
+  "amount" decimal(20,2)
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
+Table "invoice_entries" {
+  Note : "Calculating the cost entries for generating invoice against each requirement"
+  "id" int(11) [pk, not null]
+  "invoice_id" int() [ref : < billing.invoices.id]
+  "outlay_id" int() [ref : < billing.invoice_outlays.id]
+  "project_segments_id" int() [ref : < project_segments.id]
+  "user_id" int() [ref : < users.id]
+  "currency_id" int() [ref : < info.currencies.id]
+  "talent_hourly_rate_id" int [ref: < project_talent_hourly_rate.id, Note : ""]
+  "internal_hours_set" decimal(20,2) [default: NULL]
+  "internal_hours" decimal(20,2) [default: NULL]
+  "external_hours" decimal(20,2) [default: NULL]
+  "amount" decimal(20,2)
+  "exchange_rate_used" int() [ref: < info.currency_exchange_rates.id]
+  "spent_hours" decimal(20,2)
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
+Table invoice_notifications_settings {
+  Note : "To manage invoice notifications to users "
+  "id" int(11) [pk, not null]
+  user_id int [ref: < users.id]
+  is_active bool
+  "invoice_notification" bool
+  "invoice_timeframe_days" int(120)
+  "invoice_interval_hours" int(120)
+  "invoice_notification_interval" notification_interval_enum
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
+Table "invoice_notification_emails" {
+  Note : "To Keep the invoice notification history, old table name 'billing_logs'"
+  "id" int(10) [pk, not null]
+  "client_id" int(10) [ref : < clients.id]
+  "email_subject" varchar(255) [default: NULL]
+  "email_contents" text [default: NULL]
+  "recipients" text [default: NULL]
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
 Table "client_users" {
   Note : "The client users, who can login to the client portal. May have different roles in future"
   "id" int(11) [pk, not null]
@@ -138,24 +272,36 @@ Table "client_users" {
 Table info."countries" {
   Note : "The list of countries"
   "id" int(11) [pk, not null]
-  "name" varchar(20) 
-  "official_name" varchar(60) 
+  "name" varchar(20)
+  "official_name" varchar(60)
   "abv" char(2) [not null, default: "", note: 'ISO 3661-1 alpha-2']
   "abv3" char(3) [default: NULL, note: 'ISO 3661-1 alpha-3']
   "abv3_alt" char(3) [default: NULL]
   "code" char(3) [default: NULL, note: 'ISO 3661-1 numeric']
-  "slug" varchar(20) 
+  "slug" varchar(20)
   "in_eu" bool
   "created_at" timestamp
   "updated_at" timestamp
 }
 
+Table "credit_limit_notification" {
+  Note : "Old table credit_limit_logs, renamed to credit_limit_notification. "
+  "id" int(10) [pk, not null]
+  "client_id" int [ref : < clients.id]
+  "email_subject" varchar(255) [default: NULL]
+  "email_contents" text [default: NULL]
+  "recipients" text [default: NULL]
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
+
 Table info."currencies" {
   Note : "List of all currencies"
   "id" int(50) [pk, not null]
-  "currency_name" varchar(100) 
-  "iso_code" varchar(100) 
-  "symbol" varchar(20) 
+  "currency_name" varchar(100)
+  "iso_code" varchar(100)
+  "symbol" varchar(20)
   "created_at" timestamp
   "updated_at" timestamp
 }
@@ -164,8 +310,8 @@ Table info."currency_exchange_rates" {
   Note : "List of different currencies with exchange rate in INR. The latest exchange rate is taken."
   "id" int(11) [pk, not null]
   "currency_id" int [ref: < info.currencies.id]
-  "inr_value" decimal(20,4) 
-  "date" date 
+  "inr_value" decimal(20,4)
+  "date" date
   "created_at" timestamp
   "updated_at" timestamp
 }
@@ -173,10 +319,10 @@ Table info."currency_exchange_rates" {
 Table "inhouse_talents" {
   Note : "List of all inhouse talents"
   "id" int(11) [pk, not null]
-  "comments" text 
-  "designation" varchar(128) 
+  "comments" text
+  "designation" varchar(128)
   "team_leader_id" int [ref: < users.id, Note:"Manager of the talents"]
-  
+
   "non_technical_staff" tinyint(1) [not null, default: 0]
   "date_of_birth" date [default: NULL]
   "pan_number" varchar(12) [default: NULL]
@@ -194,16 +340,16 @@ Table "inhouse_talents" {
 Table "remote_talents" {
   Note : "List of all remote talents"
   "id" int(11) [pk, not null]
-  "comments" text 
-  "designation" varchar(128) 
+  "comments" text
+  "designation" varchar(128)
   "team_leader_id" int [ref: < users.id, Note:"Manager of the talent"]
   "non_technical_staff" tinyint(1) [not null, default: 0]
   "date_of_birth" date [default: NULL]
   "bank_name" varchar(50) [default: NULL]
   "bank_account_number" varchar(25) [default: NULL, note: 'field is changed to varchar to support Zero prefix']
   currency int [ref : < info.currencies.id]
- 
-  "firm_id" int(11) [ref : < talent_firm.id, default: NULL, note : "Firm id for the contract employes if any. if freelancer then this field would be NULL"]
+
+  "firm_id" int(11) [ref : < talent_firm.id, default: NULL, note : "Firm id for the contract employees if any. if freelancer then this field would be NULL"]
   "created_at" timestamp
   "updated_at" timestamp
 }
@@ -228,7 +374,7 @@ Table remote_talents_payouts {
   "remote_talent_contract_id" int [ref : < remote_talent_contract.id]
   "amount" decimal(10,2)
   currency int [ref : < info.currencies.id]
-  "exchangerate_used" int() [ref: < info.currency_exchange_rates.id]
+  "exchange_rate_used" int() [ref: < info.currency_exchange_rates.id]
   "date" date
   "created_at" timestamp
   "updated_at" timestamp
@@ -241,7 +387,7 @@ Table remote_talents_payout_entries {
   "project_segment_id" int [ref : < project_segments.id]
   "amount" decimal(10,2)
   currency int [ref : < info.currencies.id]
-  "exchangerate_used" int() [ref: < info.currency_exchange_rates.id]
+  "exchange_rate_used" int() [ref: < info.currency_exchange_rates.id]
   "date" date
   "created_at" timestamp
   "updated_at" timestamp
@@ -359,18 +505,18 @@ Table "talents_appraisals" {
 
 Table "talents_salary_splitups" {
   Note : "talent salary splitup data with history. helpful to track appraisals"
-  "id" int(11) 
+  "id" int(11)
   "user_id" int(11) [ref : < users.id]
-  // "basic_salary" decimal(20,2) 
-  // "hra" decimal(20,2) 
-  // "conveyance_allowance" decimal(20,2) 
+  // "basic_salary" decimal(20,2)
+  // "hra" decimal(20,2)
+  // "conveyance_allowance" decimal(20,2)
   // "medical_allowance" decimal(40,2) [not null, default: 0.00]
   // "extra_deductions" decimal(40,2) [not null, default: 0.00]
-  // "tds" decimal(20,2) 
+  // "tds" decimal(20,2)
   // "tds_per_hour" decimal(20,2) [default: NULL]
-  // // "history_till_last_update" longtext 
+  // // "history_till_last_update" longtext
   // "professional_tax" decimal(20,2) [not null, default: 0.00]
-  // "labour_welfare_fund" decimal(6,2) 
+  // "labour_welfare_fund" decimal(6,2)
   // "overtime_payment" decimal(10,2) [default: NULL]
   // "additional_payment" decimal(10,2) [default: NULL]
   // "arrears" decimal(10,2) [default: 0.00]
@@ -388,12 +534,12 @@ Table "talents_salaries" {
     - The overtime related fields.
   '''
   "id" int(11) [pk, not null]
-  "user_id" int [ref: < users.id] 
-  "month" date 
+  "user_id" int [ref: < users.id]
+  "month" date
   "salary" decimal(20,2) [default: NULL, note: "The promised salary for the talent."]
   "net_salary" decimal(20,2) [default: NULL, note: "The net salary based on his hours and other deductions."]
   "salary_splitup" int [ref: < talents_salary_splitups.id]
-  "hourly_rate" float 
+  "hourly_rate" float
   "hours" float [default: NULL]
   // "overtime_hours" float [default: NULL]
   // "overtime_payment" decimal(20,2) [default: NULL]
@@ -406,13 +552,13 @@ Table "talents_salaries" {
   "updated_at" timestamp
 }
 
-Table "project_talent_hourly_rate"{ 
+Table "project_talent_hourly_rate"{
   Note : "Project based talent hourly rate. This will also act as a history table"
   "id" int(11) [pk, not null]
   "user_id" int [ref : < users.id]
   "project_id" int [ref : < projects.id]
-  "hourly_rate" decimal(20,2) 
-  "currency" int(11) 
+  "hourly_rate" decimal(20,2)
+  "currency" int(11)
   "effective_from" date [Note:"To mark the effective hourly rate change date"]
   "created_at" timestamp
   "updated_at" timestamp
@@ -426,14 +572,14 @@ Table "time_entries" {
   '''
   "id" int(11) [pk, not null]
   "user_id" int(11) [default: NULL, ref: < users.id]
-  "project_segments_id" int [ref: < project_segments.id] // TODO : check if it is connected to the workorder
+  "project_segments_id" int [ref: < project_segments.id] // TODO : check if it is connected to the work-order
   "description" text [default: NULL]
   "paid_hours" decimal(20,2) [default: NULL]
   "unpaid_hours" decimal(20,2) [default: NULL]
-  "date" date 
-  "lb_paid_hours" decimal(20,2) 
-  "lb_unpaid_hours" decimal(20,2) 
-  "hourly_rate" decimal(20,2) 
+  "date" date
+  "lb_paid_hours" decimal(20,2)
+  "lb_unpaid_hours" decimal(20,2)
+  "hourly_rate" decimal(20,2)
   "client_viewable" tinyint(1)
   is_overtime bool
   "is_parsed" tinyint(4) [default: 0]
@@ -459,15 +605,15 @@ Table "time_entry_summary" {
 Table "users" {
   Note : "The user table to handle all authentications and to hold the basic details"
   "id" int(11) [pk, not null]
-  "name" varchar(128) 
+  "name" varchar(128)
   "email" varchar(245)
-  "username" varchar(64) 
-  "password" varchar(64) 
-  "image" varchar(100) 
-  "phone1" varchar(24) 
-  "phone2" varchar(24) 
-  "user_type" unified_user_user_type_enum 
-  "user_id" int(11) 
+  "username" varchar(64)
+  "password" varchar(64)
+  "image" varchar(100)
+  "phone1" varchar(24)
+  "phone2" varchar(24)
+  "user_type" unified_user_user_type_enum
+  "user_id" int(11)
   "created_at" timestamp
   "updated_at" timestamp
 }
@@ -479,7 +625,7 @@ ref: users.user_id > remote_talents.id
 Table "unsubscribed_emails" {
   Note : "Unsubscribe list of emails, who choose to opt out from the notifications"
   "id" int(11) [pk, not null]
-  "email" varchar(255) 
+  "email" varchar(255)
   "created_at" timestamp
   "updated_at" timestamp
 }
@@ -487,9 +633,9 @@ Table "unsubscribed_emails" {
 Table "info"."holidays" {
   Note : "The list of LB holidays"
   "id" int(11) [pk, not null]
-  "holiday_date" date 
-  "holiday_title" varchar(255) 
-  "holiday_description" text 
+  "holiday_date" date
+  "holiday_title" varchar(255)
+  "holiday_description" text
   "created_at" timestamp
   "updated_at" timestamp
 }
@@ -497,8 +643,8 @@ Table "info"."holidays" {
 Table "acl"."permissions" {
   Note : "Permissions table "
   "id" int(11) [pk, not null]
-  "name" varchar(264) 
-  "parent_id" int [ref: < acl.permissions.id] 
+  "name" varchar(264)
+  "parent_id" int [ref: < acl.permissions.id]
   "created_at" timestamp
   "updated_at" timestamp
 }
@@ -523,8 +669,8 @@ Table "acl"."role_permission" {
 Table "acl"."role_users"{
   Note : "The user is assigned with a role here"
   "id" int(11) [pk, not null]
-  "role_id" int [ref: < acl.role.id] 
-  "user_id" int [ref: < users.id] 
+  "role_id" int [ref: < acl.role.id]
+  "user_id" int [ref: < users.id]
   "created_at" timestamp
   "updated_at" timestamp
 }
@@ -534,7 +680,7 @@ Table "client_settings" {
   "id" int(11) [pk, not null]
   "client_id" int [ref: < clients.id]
   // "opening_balance_date" date  // Not used in code
-  "default_country" int [ref: < info.countries.id] 
+  "default_country" int [ref: < info.countries.id]
   default_currency_id int [ref: < info.currencies.id]
   default_exchange_rate_id int [ref: < info.currency_exchange_rates.id]
   "default_cost_centre" int [ref: < cost_centers.id] // Not used in code
@@ -571,22 +717,63 @@ Table talent_previous_day_booking_request {
   "id" int(11) [pk, not null]
   "user_id" int() [ref: < users.id]
   "comment" text
-  "date_with_data_entry_approved" date 
+  "date_with_data_entry_approved" date
   "status" booking_request_status
   "created_at" timestamp
   "updated_at" timestamp
 }
 
-Table logs."access_logs" { 
+Table logs."access_logs" {
   Note: "For logging the actions of users in ERP"
   "id" int(10) [pk, not null]
   "user_id" int(11) [ref : < users.id]
-  "url" varchar(500) 
+  "url" varchar(500)
   "params" text [default: NULL]
   "ip_address" varchar(100)
   "created_at" timestamp
   "updated_at" timestamp
 }
+
+// Table "credit_notes" {
+//   Note : "Credit notes are created when an invoice is canceled"
+//   "id" int(11) [pk, not null]
+//   "invoice_id" int [ref : < invoices.id]
+//   "credit_note_number" varchar(20)
+//   "number" varchar(20)
+//   "date_issued" date
+//   "date_due" date
+//   "amount" decimal(20,2)
+//   "profit_center" int [ref : < cost_centers.id]
+//   "status" varchar(200)
+//   "currency_id" int [ref : < info.currencies.id]
+//   "exchange_rate_id" int [ref: < info.currency_exchange_rates.id]
+//   "description" text
+//   "payment_date" date
+//   "contacts" int(10) [default: NULL]
+//   "type" varchar(250)
+//   "expected_date" date
+//   "comment" text
+//   "seq" int(11) [default: NULL]
+//   "vat" decimal(5,2) [default: NULL]
+//   "vat_amount" decimal(20,2)
+//   "total_amount" decimal(20,2) [not null, note: 'in Clients currency']
+//   "created_at" timestamp
+//   "updated_at" timestamp
+// }
+
+
+// Table credit_notes_discounts {
+//   Note : "To handle the discounts for credit notes"
+//   "id" int(11) [pk, not null]
+//   "credit_notes_id" int() [ref: < credit_notes.id]
+//   "discount_description" text [default: NULL]
+//   "discount" decimal(20,2) [not null, note: 'in Clients currency']
+//   currency_id int [ref: < info.currencies.id]
+//   exchange_rate_id int [ref: < info.currency_exchange_rates.id]
+//   "discount_type" discount_type
+//   "created_at" timestamp
+//   "updated_at" timestamp
+// }
 
 // ================ Enums ================ //
 Enum notification_status {
@@ -678,4 +865,9 @@ Enum client_status {
   inactive
   ongoing_project
   projects_completed
+}
+
+Enum invoice_types {
+  "Standard invoices"
+  "Preliminary invoices"
 }
